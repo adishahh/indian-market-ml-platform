@@ -1,28 +1,26 @@
-import pandas as pd
-from config.database import Database
+from config.database import engine
 from sqlalchemy import text
+import pandas as pd
+
 
 def load_stocks(csv_path: str):
-    db = Database()
-    engine = db.get_engine()
-
     df = pd.read_csv(csv_path)
 
     with engine.begin() as conn:
-        for _, row in df.iterrows():
+        for symbol in df["symbol"].unique():
             conn.execute(
-                text("""
-                INSERT INTO stocks (symbol, name, exchange, sector)
-                VALUES (:symbol, :name, :exchange, :sector)
-                ON CONFLICT (symbol) DO NOTHING
-                """),
-                {
-                    "symbol": row["symbol"],
-                    "name": row["name"],
-                    "exchange": "NSE",
-                    "sector": row.get("sector")
-                }
+                text(
+                    """
+                    INSERT INTO stocks (symbol)
+                    VALUES (:symbol)
+                    ON CONFLICT (symbol) DO NOTHING
+                    """
+                ),
+                {"symbol": symbol},
             )
 
+    print("Stocks loaded successfully")
+
+
 if __name__ == "__main__":
-    load_stocks("data/nifty50.csv")
+    load_stocks("data/raw/nifty50.csv")
