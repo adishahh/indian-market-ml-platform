@@ -3,8 +3,13 @@ from sqlalchemy import text
 from config.database import engine
 
 
+# ---------------- CONFIG ----------------
+TARGET_HORIZON = 5  # days ahead to predict
+# --------------------------------------
+
+
 def build_dataset():
-    query = """
+    query = f"""
     SELECT
         f.stock_id,
         f.date,
@@ -17,7 +22,8 @@ def build_dataset():
         f.rsi_14,
         f.volatility_20d,
         p.close AS close_today,
-        LEAD(p.close) OVER (PARTITION BY p.stock_id ORDER BY p.date) AS close_next
+        LEAD(p.close, {TARGET_HORIZON})
+            OVER (PARTITION BY p.stock_id ORDER BY p.date) AS close_future
     FROM features_daily f
     JOIN prices p
         ON f.stock_id = p.stock_id
@@ -27,9 +33,13 @@ def build_dataset():
 
     df = pd.read_sql(text(query), engine)
 
-    df["target_return"] = (df["close_next"] - df["close_today"]) / df["close_today"]
+    # Forward return (multi-day)
+    df["target_return"] = (
+        df["close_future"] / df["close_today"] - 1
+    )
 
-    df = df.dropna()
+    # Drop rows where future price is unavailable
+    df = df.dropna().reset_index(drop=True)
 
     return df
 
@@ -38,3 +48,4 @@ if __name__ == "__main__":
     df = build_dataset()
     print(df.head())
     print("Dataset shape:", df.shape)
+    print("Target horizon:", TARGET_HORIZON, "days")
