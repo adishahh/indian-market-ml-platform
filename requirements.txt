@@ -1,0 +1,14 @@
+pandas
+numpy
+scikit-learn
+xgboost
+sqlalchemy
+psycopg2-binary
+fastapi
+uvicorn
+pydantic
+pyyaml
+requests
+transformers
+torch
+python-dotenv

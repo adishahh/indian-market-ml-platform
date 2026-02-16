@@ -1,0 +1,25 @@
+market:
+  universe: nifty50
+  prediction_horizon_days: 5
+
+database:
+  host: localhost
+  port: 5432
+  name: market_db
+  user: postgres
+
+model:
+  type: xgboost
+  target: outperform_index
+  params:
+    max_depth: 6
+    learning_rate: 0.05
+    n_estimators: 200
+
+features:
+  technical: true
+  sentiment: true
+
+automation:
+  daily_update: true
+  retrain_frequency: weekly
