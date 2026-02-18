@@ -1,7 +1,11 @@
-import yfinance as yf
+import logging
 from sqlalchemy import text
 from config.database import engine
+# Import the new function from market_data.py
+from data_ingestion.market_data import fetch_market_data_with_retry, DataIngestionError
 
+# Use the same logger config
+logger = logging.getLogger(__name__)
 
 def fetch_stock_symbols():
     query = "SELECT stock_id, symbol FROM stocks"
@@ -10,49 +14,51 @@ def fetch_stock_symbols():
 
 
 def load_prices(start_date="2018-01-01", end_date=None):
-    stocks = fetch_stock_symbols()
+    try:
+        stocks = fetch_stock_symbols()
+    except Exception as e:
+        logger.critical(f"Database connection failed: {e}")
+        return
 
     for stock_id, symbol in stocks:
         yahoo_symbol = symbol + ".NS"
-        print(f"Fetching data for {yahoo_symbol}")
-
-        df = yf.download(
-            yahoo_symbol,
-            start=start_date,
-            end=end_date,
-            progress=False
-        )
-
-        if df.empty:
-            print(f"No data found for {symbol}")
+        
+        try:
+            # Use the robust fetch function
+            df = fetch_market_data_with_retry(yahoo_symbol, start_date, end_date)
+        except Exception as e:
+            logger.error(f"Skipping {symbol} after all retries failed. Error: {e}")
             continue
 
-        # ✅ RESET INDEX FIRST
+        # In-memory transformation
         df.reset_index(inplace=True)
+        
+        # Ensure column names match schema exactly if needed, or map them below
+        # Note: fetch_market_data_with_retry already flattens columns
 
-        # ✅ FLATTEN MULTI-INDEX COLUMNS (CRITICAL FIX)
-        df.columns = [col[0] if isinstance(col, tuple) else col for col in df.columns]
-
-        with engine.begin() as conn:
-            for row in df.itertuples(index=False):
-                conn.execute(
-                    text(
-                        """
-                        INSERT INTO prices (stock_id, date, open, close, volume)
-                        VALUES (:stock_id, :date, :open, :close, :volume)
-                        ON CONFLICT (stock_id, date) DO NOTHING
-                        """
-                    ),
-                    {
-                        "stock_id": stock_id,
-                        "date": row.Date.date(),   # ✅ NOW THIS WORKS
-                        "open": float(row.Open),
-                        "close": float(row.Close),
-                        "volume": int(row.Volume),
-                    },
-                )
-
-        print(f"Loaded prices for {symbol}")
+        try:
+            with engine.begin() as conn:
+                for row in df.itertuples(index=False):
+                    conn.execute(
+                        text(
+                            """
+                            INSERT INTO prices (stock_id, date, open, close, volume)
+                            VALUES (:stock_id, :date, :open, :close, :volume)
+                            ON CONFLICT (stock_id, date) DO NOTHING
+                            """
+                        ),
+                        {
+                            "stock_id": stock_id,
+                            "date": row.Date.date(),
+                            "open": float(row.Open),
+                            "close": float(row.Close),
+                            "volume": int(row.Volume),
+                        },
+                    )
+            logger.info(f"Successfully loaded prices for {symbol} into DB")
+            
+        except Exception as db_err:
+            logger.error(f"Database insertion failed for {symbol}: {db_err}")
 
 
 if __name__ == "__main__":

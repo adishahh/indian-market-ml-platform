@@ -1,0 +1,46 @@
+graph TD
+    subgraph Root["Project Root: indian-market-ml-platform"]
+        DI[("data_ingestion")]
+        FE[("feature_engineering")]
+        MOD[("model")]
+        HF[("hf-model")]
+        NB[("notebooks")]
+        TEST[("tests")]
+        CONF[("config")]
+        DB[("db")]
+        
+        %% Data Ingestion
+        DI -->|load_prices.py| RawData[Raw Market Data]
+        DI -->|load_stocks.py| StockList[Stock Lists]
+        
+        %% Feature Engineering
+        RawData --> FE
+        StockList --> FE
+        FE -->|build_features.py| Features[Processed Features]
+        
+        %% Modeling
+        Features --> MOD
+        MOD -->|train_model.py| ModelArtifacts[Model Artifacts]
+        MOD -->|evaluate.py| Metrics[Evaluation Metrics]
+        
+        %% Integration
+        ModelArtifacts -.-> HF
+        
+        %% Exploration
+        NB -.-> DI
+        NB -.-> FE
+        NB -.-> MOD
+
+        %% Configuration & DB
+        CONF -.-> DI
+        CONF -.-> FE
+        CONF -.-> MOD
+        DB -.-> DI
+    end
+    
+    classDef dir fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef file fill:#fff9c4,stroke:#fbc02d,stroke-width:1px;
+    classDef artifact fill:#e8f5e9,stroke:#2e7d32,stroke-width:1px;
+    
+    class DI,FE,MOD,HF,NB,TEST,CONF,DB dir;
+    class RawData,StockList,Features,ModelArtifacts,Metrics artifact;

@@ -1,6 +1,7 @@
 # Python
 __pycache__/
 *.pyc
+.env
 venv/
 
 # Environment variables
@@ -12,3 +13,55 @@ Thumbs.db
 
 # Logs
 *.log
+
+# binary / generated artifacts
+*.png
+*.jpg
+*.jpeg
+*.pdf
+artifacts/*.png
+
+# Data
+*.csv
+*.parquet
+*.h5
+
+# Images / binaries
+*.png
+*.jpg
+*.pdf
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# Data (never commit)
+data/
+*.csv
+*.parquet
+*.feather
+
+# Model artifacts
+model/artifacts/
+hf-model/
+
+# ML binaries
+*.pkl
+*.joblib
+*.onnx
+*.pt
+*.h5
+
+# Logs / temp
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

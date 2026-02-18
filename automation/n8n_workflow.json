@@ -1,0 +1,292 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Indian Stock Market Alert System\n---\n### 📋 Workflow Overview\nRuns every weekday at **9:20 AM IST**.\nFetches active stocks from Postgres, sends each to FastAPI for ML prediction, and fires a Telegram alert if prediction is a **Strong Buy**.\n\n---\n### 🔁 Flow Order\n```\nSchedule Trigger (9:20 AM Mon-Fri)\n        ↓\nPostgres → SELECT active stocks\n        ↓\nSplitInBatches (1 stock at a time)\n        ↓\nPOST /predict → FastAPI :8003\n        ↓\nIF prediction == 'Buy' AND probability > 0.60\n   ✅ TRUE  → Telegram Alert → 🔁 Loop Back\n   ❌ FALSE → Skip (NoOp)   → 🔁 Loop Back\n        ↓\nAll Stocks Done → End\n```\n\n---\n### ⚙️ Configuration Checklist\n- [ ] Set **Postgres credential** (localhost, port 5432)\n- [ ] Set **Telegram Bot Token** in credentials\n- [ ] Set **Telegram Chat ID** in Telegram node\n- [ ] Ensure **FastAPI** is running on `localhost:8003`\n- [ ] Ensure `stocks` table has `is_active = true` rows\n\n---\n### 🗄️ Database\n**Table:** `stocks`\n**Query:** `SELECT symbol FROM stocks WHERE is_active = true;`\n**Seed Test Data:**\n```sql\nINSERT INTO stocks (symbol, is_active)\nVALUES ('TCS', true), ('INFY', true),\n       ('RELIANCE', true), ('HDFCBANK', true);\n```\n\n---\n### 🤖 FastAPI Contract\n**Endpoint:** `POST http://localhost:8003/predict`\n**Request Body:**\n```json\n{ \"symbol\": \"TCS\" }\n```\n**Expected Response:**\n```json\n{\n  \"symbol\": \"TCS\",\n  \"prediction\": \"Buy\",\n  \"probability\": 0.87\n}\n```\n⚠️ probability must be decimal (0.0 – 1.0)\n\n---\n### 📲 Telegram Alert Format\n🚀 BUY SIGNAL: TCS | Probability: 87.00%\n\n---\n### 🐛 Troubleshooting\n| Symptom | Fix |\n|---|---|\n| Goes straight to All Stocks Done | DB has 0 active rows — run seed SQL above |\n| Loop runs once and stops | Check Telegram + Skip nodes loop back to SplitInBatches |\n| Prediction node errors | Ensure FastAPI is running on :8003 |\n| Telegram not sending | Verify Bot Token + Chat ID |\n| Wrong probability format | API must return 0.87 not 87 |\n\n---\n### 🕐 Market Hours Note\nNSE/BSE: **9:15 AM – 3:30 PM IST (Mon–Fri)**\nThis workflow triggers at **9:20 AM** — 5 mins after market open.\nIf FastAPI uses yfinance, it may fail outside market hours.",
+        "height": 1816,
+        "width": 500,
+        "color": 4
+      },
+      "id": "e7f27038-baf6-43dc-93b4-9544d8c71189",
+      "name": "📌 Project Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -928,
+        2528
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "20 9 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "98c39883-047c-48c8-84fa-cb58533b8250",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -384,
+        2832
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT symbol FROM stocks WHERE is_active = true;",
+        "options": {}
+      },
+      "id": "7cfc648c-a04e-4739-b63a-81ceef65d055",
+      "name": "Fetch Active Stocks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -176,
+        2832
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "eJZRnWgfnRDknGbL",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "bde8e0d2-76c3-4b9c-99c7-792014be587e",
+      "name": "Loop Over Stocks",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        64,
+        2832
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8003/predict",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "symbol",
+              "value": "={{ $json.symbol }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fccd8a0c-abe6-4627-a866-b3a7d110215d",
+      "name": "Get Prediction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        272,
+        2720
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-001",
+              "leftValue": "={{ $json.prediction }}",
+              "rightValue": "Buy",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "cond-002",
+              "leftValue": "={{ $json.probability }}",
+              "rightValue": 0.6,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "382521c4-86dc-45b1-beea-334cf94fa832",
+      "name": "Is Strong Buy?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        496,
+        2720
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ '🚀 BUY SIGNAL: ' + $json.symbol + ' | Probability: ' + ($json.probability * 100).toFixed(2) + '%' }}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "82e47b3f-6fb5-4a04-8fd0-af92e22efb9c",
+      "name": "Send Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        2608
+      ],
+      "webhookId": "ad8b7aa5-f0cf-45f7-85db-1c35f467ba3c"
+    },
+    {
+      "parameters": {},
+      "id": "35043531-e8b6-444e-b00d-e3b96e8d653b",
+      "name": "Skip (No Signal)1",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        720,
+        2832
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "9c266ab7-affb-4aa2-80bb-d18694175be1",
+      "name": "All Stocks Done1",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        272,
+        2976
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Workflow\n",
+        "height": 656,
+        "width": 1616,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -416,
+        2528
+      ],
+      "typeVersion": 1,
+      "id": "0e799df1-6f24-4a4b-bc5e-a290b2c59e85",
+      "name": "Sticky Note"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Active Stocks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Active Stocks": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Stocks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Stocks": {
+      "main": [
+        [
+          {
+            "node": "Get Prediction",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "All Stocks Done1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Prediction": {
+      "main": [
+        [
+          {
+            "node": "Is Strong Buy?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Strong Buy?": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip (No Signal)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Telegram Alert": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Stocks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip (No Signal)1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Stocks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "d85c0f39b62354c03c6f678756537e7195b92e364f5a134aa1de46ba18f7c4c7"
+  }
+}

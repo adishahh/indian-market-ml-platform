@@ -71,3 +71,38 @@ Testing is intentionally lightweight but structured to support future expansion.
 ## Disclaimer
 
 This project is for research and engineering demonstration purposes only. It is not intended as a live trading or investment advisory system.
+
+---
+license: mit
+tags:
+- finance
+- indian-market
+- algorithmic-trading
+- time-series
+- machine-learning
+---
+
+# Indian Market ML Trading Model
+
+## Overview
+This repository contains a machine learning model trained on Indian equity market data.
+The model is designed for:
+- Signal generation
+- Risk-aware backtesting
+- Strategy evaluation
+
+## Features
+- Market regime awareness
+- Backtest metrics included
+- JSON-based model artifacts for deployment
+
+## Artifacts
+- `artifacts/model.json` – trained model
+- `artifacts/metrics.json` – evaluation metrics
+- `artifacts/backtest_metrics.json` – backtest results
+
+## Intended Use
+Research, experimentation, and integration into automated trading pipelines.
+
+## Disclaimer
+This project is for research purposes only. Not financial advice.

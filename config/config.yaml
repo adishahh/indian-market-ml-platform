@@ -9,12 +9,21 @@ database:
   user: postgres
 
 model:
-  type: xgboost
-  target: outperform_index
+  type: xgboost_classifier
+  target: target_class
   params:
-    max_depth: 6
-    learning_rate: 0.05
-    n_estimators: 200
+    max_depth: 5
+    learning_rate: 0.16432307216478526
+    n_estimators: 162
+    subsample: 0.6017638901556924
+    colsample_bytree: 0.949925017002092
+    reg_alpha: 0.0001253985842292896
+    reg_lambda: 4.79762558469835e-06
+    min_child_weight: 3
+    random_state: 42
+    objective: binary:logistic
+    eval_metric: logloss
+
 
 features:
   technical: true
@@ -23,3 +32,11 @@ features:
 automation:
   daily_update: true
   retrain_frequency: weekly
+
+features:
+  rsi_window: 14
+  sma_windows: [20, 50]
+  ema_windows: [20]
+  volatility_window: 20
+  lag_days: [1, 2, 3, 5]  # New: Lag features
+
