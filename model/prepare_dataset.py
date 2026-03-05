@@ -2,6 +2,10 @@ import pandas as pd
 import yaml
 from sqlalchemy import text
 from config.database import engine
+from config.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 # ---------------- CONFIG ----------------
 with open("config/config.yaml", "r") as f:
@@ -14,21 +18,21 @@ TARGET_HORIZON = MARKET_CONFIG.get("prediction_horizon_days", 5)
 
 
 def build_dataset():
-    # 1. Fetch Stock Features
-    # We grab the raw prices too for target calculation
+    # 1. Fetch ALL Stock Features dynamically (no hardcoded columns)
+    # This ensures any new features added in build_features.py flow into training automatically
     stock_query = """
     SELECT 
-        f.stock_id, 
-        f.date,
-        f.return_1d, f.return_5d, f.return_20d,
-        f.sma_20, f.sma_50, f.ema_20,
-        f.rsi_14, f.volatility_20d,
+        f.*,
         p.close AS stock_close_today
     FROM features_daily f
     JOIN prices p ON f.stock_id = p.stock_id AND f.date = p.date
     ORDER BY f.date, f.stock_id
     """
     df = pd.read_sql(text(stock_query), engine)
+    
+    # Drop raw price columns that are not features (keep only engineered ones)
+    drop_raw = [c for c in ['open', 'volume', 'close'] if c in df.columns]
+    df = df.drop(columns=drop_raw)
     
     # 2. Fetch Index Data (Pivot it)
     index_query = """
@@ -40,8 +44,10 @@ def build_dataset():
     df_idx = pd.read_sql(text(index_query), engine)
     
     if df_idx.empty:
-        print("Warning: No index data found. Skipping macro features.")
-        df_macro = pd.DataFrame() # Empty
+        logger.warning("No index data found in DB — macro features will be zeros. "
+                       "Run data_ingestion/load_index.py to fix this.")
+        df_macro = pd.DataFrame()  # Empty
+
     else:
         # Pivot: date | CL=F | GC=F | INR=X | ^NSEBANK | ^NSEI
         df_macro = df_idx.pivot(index='date', columns='symbol', values='close')

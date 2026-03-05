@@ -6,7 +6,8 @@ from sqlalchemy.orm import sessionmaker
 # Environment variables
 # =========================
 DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "asdasdasd")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "")  # Set DB_PASSWORD env var or use pg_hba trusted auth
+
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME", "market_db")

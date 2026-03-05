@@ -1,42 +1,93 @@
-market:
-  universe: nifty50
-  prediction_horizon_days: 5
+# -----------------------------------------------------------------------------
+# 🚀 Indian Market ML Platform - Main Pipeline Configuration
+# -----------------------------------------------------------------------------
 
+# 1. Market & Universe
+# Defines what we trade and the timeframe.
+market:
+  universe_file: "config/universe.yaml"  # List of stocks (Nifty 10/50/500)
+  prediction_horizon_days: 5             # Swing Trading Horizon
+  macro_indices:                         # Global Macro Factors (Phase 8)
+    - ^NSEBANK   # Bank Nifty
+    - CL=F       # Crude Oil Futures
+    - GC=F       # Gold Futures
+    - INR=X      # USD/INR Exchange Rate
+    - ^NSEI      # Nifty 50 Index
+
+# 2. Database Connection
+# PostgreSQL credentials (Local).
 database:
   host: localhost
   port: 5432
   name: market_db
   user: postgres
+  # password: (Env Variable or Trusted Auth)
 
+# 3. Feature Engineering Pipeline
+# Controls which features are generated in 'build_features.py'.
+features:
+  technical_indicators:
+    rsi_window: 14            # Momentum (Overbought/Oversold)
+    sma_windows: [20, 50]     # Trend (Short/Medium)
+    ema_windows: [20]         # Trend (Fast)
+    volatility_window: 20     # Risk (Bollinger-like)
+    lag_days: [1, 2, 3, 5]    # Time-series history
+  
+  macro_economics: true       # Use BankNifty, USD/INR, etc.
+  
+  sentiment_analysis: 
+    enabled: true
+    model: "ProsusAI/finbert" # HuggingFace Model for News Sentiment
+    source_table: "news"      # DB Table containing headlines
+
+# News Data Sources (upgrade #3)
+# Primary: NewsAPI (newsapi.org) — requires free API key
+# Fallback: yfinance news (free, limited coverage)
+news:
+  primary_source: newsapi     # Options: 'newsapi', 'yfinance'
+  newsapi_key_env: NEWSAPI_KEY  # Set env variable: $env:NEWSAPI_KEY="your_key_here"
+  topics:
+    - "Indian stock market"
+    - "BSE NSE"
+    - "Nifty50 stocks"
+
+
+# 4. Feature Store (Production Hardening)
+# Settings for the nightly job that pre-calculates data for API.
+feature_store:
+  update_time: "20:00"        # When to run feature_store.py
+  lookback_days: 100          # History needed for calculation
+
+# 5. Model Hyperparameters (XGBoost)
+# The "Brain" of the system.
 model:
   type: xgboost_classifier
-  target: target_class
-  params:
-    max_depth: 5
-    learning_rate: 0.16432307216478526
-    n_estimators: 162
-    subsample: 0.6017638901556924
-    colsample_bytree: 0.949925017002092
-    reg_alpha: 0.0001253985842292896
-    reg_lambda: 4.79762558469835e-06
-    min_child_weight: 3
-    random_state: 42
-    objective: binary:logistic
-    eval_metric: logloss
+  target: target_class        # 0 = Hold/Sell, 1 = Buy
+  model_path: "model/artifacts/"
+  params_file: "config/best_params.yaml" # Auto-tuned hyperparameters
 
-
-features:
-  technical: true
-  sentiment: true
-
+# 6. Automation & Alerts
+# n8n Workflow settings.
 automation:
-  daily_update: true
-  retrain_frequency: weekly
+  platform: n8n
+  schedule: "Mon-Fri 09:20 AM"
+  alert_threshold: 0.60       # Probability > 60% = Signal
+  channels:
+    - telegram                # Sends to 'Indian Market Signals' channel
 
-features:
-  rsi_window: 14
-  sma_windows: [20, 50]
-  ema_windows: [20]
-  volatility_window: 20
-  lag_days: [1, 2, 3, 5]  # New: Lag features
+# 7. Backtesting Strategy
+# Default settings for 'model/backtest.py'.
+backtest:
+  initial_capital: 100000     # ₹1 Lakh
+  trade_amount: 20000         # ₹20k per trade (Fixed Position)
+  stop_loss: -0.05            # -5% Stop Loss
+  take_profit: 0.15           # 15% Take Profit
+
+  # --- Indian Market Transaction Costs (upgrade #4) ---
+  # These are DEDUCTED from each trade to make backtest realistic.
+  brokerage_pct: 0.0003       # 0.03% per side (e.g., Zerodha Equity Delivery)
+  stt_buy_pct: 0.001          # 0.1% STT on Buy side (Equity Delivery)
+  stt_sell_pct: 0.001         # 0.1% STT on Sell side (Equity Delivery)
+  slippage_pct: 0.001         # 0.1% slippage (market impact on execution)
+  # Total round-trip cost estimate: ~0.4%-0.6% per trade
 

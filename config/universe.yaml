@@ -1,0 +1,78 @@
+# Active Stock Universe
+# These are the stocks currently being tracked, ingested, and predicted by the platform.
+# To add more stocks:
+# 1. Add symbol here (e.g. - TATAMOTORS)
+# 2. Run 'seed_stocks.py' (or equivalent) to add to DB.
+# 3. Run 'ingest_data.py' to fetch history.
+
+symbols:
+  # === Large Caps (Original) ===
+  - AXISBANK
+  - BHARTIARTL
+  - HDFCBANK
+  - ICICIBANK
+  - INFY
+  - ITC
+  - LT
+  - RELIANCE
+  - SBIN
+  - TCS
+  # === Batch 2 ===
+  - ABFRL
+  - GRASIM
+  # === IT & Tech ===
+  - WIPRO
+  - HCLTECH
+  - TECHM
+  - MPHASIS
+  - LTTS
+  # === Pharma & Healthcare ===
+  - SUNPHARMA
+  - DRREDDY
+  - CIPLA
+  - DIVISLAB
+  - APOLLOHOSP
+  # === Banking & Finance ===
+  - KOTAKBANK
+  - INDUSINDBK
+  - BAJFINANCE
+  - BAJAJFINSV
+  - MUTHOOTFIN
+  - CHOLAFIN
+  # === Auto ===
+  - MARUTI
+  - TATAMOTORS
+  - M&M
+  - HEROMOTOCO
+  - EICHERMOT
+  # === FMCG & Consumer ===
+  - HINDUNILVR
+  - NESTLEIND
+  - BRITANNIA
+  - DABUR
+  - GODREJCP
+  - MARICO
+  # === Metals & Mining ===
+  - TATASTEEL
+  - JSWSTEEL
+  - HINDALCO
+  - VEDL
+  # === Energy & Infra ===
+  - NTPC
+  - POWERGRID
+  - ONGC
+  - BPCL
+  - COALINDIA
+  # === Consumer Discretionary ===
+  - TITAN
+  - ASIANPAINT
+  - DMART
+  - PIDILITIND
+  # === Cement & Industrials ===
+  - ULTRACEMCO
+  - SHREECEM
+  - SIEMENS
+  - ABB
+  # === Conglomerates ===
+  - ADANIENT
+  - ADANIPORTS

@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.metrics import mean_squared_error, mean_absolute_error, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+from sklearn.metrics import mean_squared_error, mean_absolute_error, accuracy_score, precision_score, recall_score, f1_score
 
 def calculate_directional_accuracy(y_true, y_pred):
     """
@@ -31,12 +31,11 @@ def get_model_metrics(y_true, y_pred):
 
 def get_classification_metrics(y_true, y_pred):
     """
-    Returns dictionary of classification metrics.
+    Returns classification metrics for the XGBoost Classifier.
     """
     return {
-        "accuracy": accuracy_score(y_true, y_pred),
-        "precision": precision_score(y_true, y_pred, zero_division=0),
-        "recall": recall_score(y_true, y_pred, zero_division=0),
-        "f1": f1_score(y_true, y_pred, zero_division=0),
-        "roc_auc": roc_auc_score(y_true, y_pred)
+        "accuracy": round(accuracy_score(y_true, y_pred), 4),
+        "precision": round(precision_score(y_true, y_pred, zero_division=0), 4),
+        "recall": round(recall_score(y_true, y_pred, zero_division=0), 4),
+        "f1_score": round(f1_score(y_true, y_pred, zero_division=0), 4),
     }

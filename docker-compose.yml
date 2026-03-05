@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  # ─────────────────────────────────────────────
+  # PostgreSQL Database
+  # ─────────────────────────────────────────────
+  db:
+    image: postgres:15
+    container_name: market_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: market_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # FastAPI Inference + Portfolio API
+  # ─────────────────────────────────────────────
+  api:
+    build: .
+    container_name: market_api
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    environment:
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/market_db
+      - NEWSAPI_KEY=${NEWSAPI_KEY}
+
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./model/artifacts:/app/model/artifacts # Persist trained models
+      - ./logs:/app/logs # Persist logs outside container
+
+volumes:
+  pgdata:

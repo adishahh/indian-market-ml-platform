@@ -33,14 +33,19 @@ def objective(trial):
         "n_jobs": -1
     }
 
-    # 3. Train
-    model = xgb.XGBClassifier(**params)
+    # 3. Train (with class imbalance correction)
+    neg_count = (y_train == 0).sum()
+    pos_count = (y_train == 1).sum()
+    scale_pos_weight = neg_count / pos_count if pos_count > 0 else 1.0
+
+    model = xgb.XGBClassifier(**params, scale_pos_weight=scale_pos_weight)
     
     model.fit(
         X_train, y_train,
         eval_set=[(X_test, y_test)],
         verbose=False
     )
+
 
     # 4. Evaluate
     preds = model.predict(X_test)

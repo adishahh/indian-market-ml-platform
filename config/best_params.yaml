@@ -1,13 +1,13 @@
 model:
   params:
-    colsample_bytree: 0.949925017002092
+    colsample_bytree: 0.5037007305041692
     eval_metric: logloss
-    learning_rate: 0.16432307216478526
-    max_depth: 5
-    min_child_weight: 3
-    n_estimators: 162
+    learning_rate: 0.022037997041235616
+    max_depth: 10
+    min_child_weight: 4
+    n_estimators: 449
     objective: binary:logistic
     random_state: 42
-    reg_alpha: 0.0001253985842292896
-    reg_lambda: 4.79762558469835e-06
-    subsample: 0.6017638901556924
+    reg_alpha: 4.249607808575078e-07
+    reg_lambda: 5.193481413158983e-07
+    subsample: 0.5416132448678803

@@ -2,13 +2,10 @@ import pandas as pd
 import yfinance as yf
 import logging
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from config.logger import get_logger
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
 
 class DataIngestionError(Exception):
     """Custom exception for data ingestion failures."""

@@ -1,6 +1,10 @@
 from config.database import engine
+from config.logger import get_logger
 from sqlalchemy import text
 import pandas as pd
+
+logger = get_logger(__name__)
+
 
 
 def load_stocks(csv_path: str):
@@ -19,7 +23,8 @@ def load_stocks(csv_path: str):
                 {"symbol": symbol},
             )
 
-    print("Stocks loaded successfully")
+    logger.info("Stocks loaded successfully.")
+
 
 
 if __name__ == "__main__":

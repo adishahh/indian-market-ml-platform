@@ -1,14 +1,18 @@
+import sys
+import os
+sys.path.append(os.getcwd())
 import pandas as pd
 import numpy as np
 import yaml
 import logging
 from sqlalchemy import text
 from config.database import engine
+from config.logger import get_logger
 from feature_engineering.scaler import fit_and_save_scaler
 
-# Configure Logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Use centralized logger
+logger = get_logger(__name__)
+
 
 # Load Config
 with open("config/config.yaml", "r") as f:
@@ -52,35 +56,58 @@ def calculate_technicals(stock_df):
     # 1. Handle Missing Data
     stock_df[['close', 'open', 'volume']] = stock_df[['close', 'open', 'volume']].ffill()
 
-    # 2. Key Technical Indicators
-    # Returns
+    # 2. Returns
     stock_df["return_1d"] = stock_df["close"].pct_change(1)
     stock_df["return_5d"] = stock_df["close"].pct_change(5)
     stock_df["return_20d"] = stock_df["close"].pct_change(20)
 
-    # SMAs
+    # 3. SMAs
     for w in FEAT_CONFIG.get("sma_windows", [20, 50]):
         stock_df[f"sma_{w}"] = stock_df["close"].rolling(w).mean()
 
-    # EMAs
+    # 4. EMAs
     for w in FEAT_CONFIG.get("ema_windows", [20]):
         stock_df[f"ema_{w}"] = stock_df["close"].ewm(span=w, adjust=False).mean()
 
-    # RSI
+    # 5. RSI
     rsi_window = FEAT_CONFIG.get("rsi_window", 14)
     stock_df[f"rsi_{rsi_window}"] = compute_rsi(stock_df["close"], rsi_window)
 
-    # Volatility
+    # 6. Volatility
     vol_window = FEAT_CONFIG.get("volatility_window", 20)
     stock_df[f"volatility_{vol_window}d"] = stock_df["return_1d"].rolling(vol_window).std()
 
-    # 3. Lag Features
+    # 7. Lag Features
     for lag in FEAT_CONFIG.get("lag_days", []):
         stock_df[f"close_lag_{lag}"] = stock_df["close"].shift(lag)
 
-    # Drop rows that have NaNs due to rolling windows (optional, handled by caller if needed)
-    # stock_df = stock_df.dropna()
-    
+    # --- NEW FEATURES ---
+
+    # 8. MACD (12/26/9)
+    ema_12 = stock_df["close"].ewm(span=12, adjust=False).mean()
+    ema_26 = stock_df["close"].ewm(span=26, adjust=False).mean()
+    stock_df["macd"] = ema_12 - ema_26
+    stock_df["macd_signal"] = stock_df["macd"].ewm(span=9, adjust=False).mean()
+    stock_df["macd_hist"] = stock_df["macd"] - stock_df["macd_signal"]
+
+    # 9. Volume Ratio (today's volume vs 20d avg — spikes = momentum)
+    stock_df["volume_ratio"] = stock_df["volume"] / stock_df["volume"].rolling(20).mean()
+
+    # 10. OBV (On-Balance Volume)
+    obv = [0]
+    for i in range(1, len(stock_df)):
+        if stock_df["close"].iloc[i] > stock_df["close"].iloc[i - 1]:
+            obv.append(obv[-1] + stock_df["volume"].iloc[i])
+        elif stock_df["close"].iloc[i] < stock_df["close"].iloc[i - 1]:
+            obv.append(obv[-1] - stock_df["volume"].iloc[i])
+        else:
+            obv.append(obv[-1])
+    stock_df["obv"] = obv
+    stock_df["obv_ma"] = stock_df["obv"].rolling(20).mean()
+
+    # 11. Price vs SMA20 distance (how extended is price from its mean)
+    stock_df["price_to_sma20"] = (stock_df["close"] - stock_df["sma_20"]) / stock_df["sma_20"]
+
     return stock_df
 
 def build_features():
@@ -114,17 +141,27 @@ def build_features():
     # Create DataFrame for Scaling
     final_df = pd.DataFrame(feature_rows)
     
-    # 4. Feature Scaling (Fit on everything for now - in production separate train/test fit)
-    # Identify numeric feature columns (exclude ID and Date)
+    # CLEANING: Replace Inf with NaN and drop
+    final_df.replace([np.inf, -np.inf], np.nan, inplace=True)
+    final_df.dropna(inplace=True)
+    
+    # 4. Feature Scaling — fit ONLY on training data (pre-2023) to prevent data leakage
+    # This is critical for time-series ML: scaler must not see future (test) data
     exclude_cols = ['stock_id', 'date']
     feature_cols = [c for c in final_df.columns if c not in exclude_cols]
-    
-    # Save the scaler for inference usage
-    fit_and_save_scaler(final_df, feature_cols)
-    
-    # (Optional) We could apply the scaling here, but usually libraries handle unscaled features ok. 
-    # For neural networks, we would replace values with scaled ones. 
-    # For now, we just save the scaler.
+
+    # Use pre-2023 as train split for scaler fitting (consistent with model train/test split)
+    TRAIN_CUTOFF = pd.Timestamp("2023-01-01")
+    train_only_df = final_df[final_df['date'] < TRAIN_CUTOFF]
+
+    if len(train_only_df) > 100:
+        fit_and_save_scaler(train_only_df, feature_cols)
+        logger.info(f"Scaler fitted on {len(train_only_df)} training rows (pre-2023 only — no leakage).")
+    else:
+        # Fallback: not enough pre-2023 data, fit on all (shouldn't happen with real data)
+        fit_and_save_scaler(final_df, feature_cols)
+        logger.warning("Not enough pre-2023 data — scaler fitted on full dataset (check your data range).")
+
 
     logger.info(f"Generated {len(final_df)} feature rows. Saving to DB...")
 
@@ -140,7 +177,7 @@ def build_features():
         final_df.to_sql(
             'features_daily', 
             con=conn, 
-            if_exists='append', 
+            if_exists='replace', 
             index=False,
             method='multi',
             chunksize=1000 # Batch size

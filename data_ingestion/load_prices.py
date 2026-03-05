@@ -1,11 +1,13 @@
 import logging
 from sqlalchemy import text
 from config.database import engine
+from config.logger import get_logger
 # Import the new function from market_data.py
 from data_ingestion.market_data import fetch_market_data_with_retry, DataIngestionError
 
-# Use the same logger config
-logger = logging.getLogger(__name__)
+# Use the centralized logger
+logger = get_logger(__name__)
+
 
 def fetch_stock_symbols():
     query = "SELECT stock_id, symbol FROM stocks"

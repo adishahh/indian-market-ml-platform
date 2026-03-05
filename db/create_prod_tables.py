@@ -53,6 +53,20 @@ def create_prod_tables():
                 execution_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """))
+
+        print("Creating table: portfolio_positions...")
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS portfolio_positions (
+                id SERIAL PRIMARY KEY,
+                stock_id INTEGER REFERENCES stocks(stock_id),
+                buy_date DATE,
+                buy_price FLOAT,
+                quantity INTEGER,
+                status VARCHAR(20) DEFAULT 'OPEN', -- 'OPEN' or 'CLOSED'
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """))
+
         
         conn.commit()
     print("Tables created successfully.")

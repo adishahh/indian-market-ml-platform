@@ -3,10 +3,10 @@ import pandas as pd
 import logging
 from sqlalchemy import text
 from config.database import engine
+from config.logger import get_logger
 
-# Configure Logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
 
 INDICES = {
     "^NSEI": "Nifty 50",
